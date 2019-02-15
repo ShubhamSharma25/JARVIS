@@ -8,6 +8,10 @@ import datetime
 import wolframalpha
 import os
 import sys
+import pyaudio
+import wave
+import pyglet
+import playsound
 from flask import Flask, request
 from flask_cors import CORS, cross_origin
 from flask_restful import Resource, Api
@@ -16,15 +20,44 @@ from flask_jsonpify import jsonify
 
 app = Flask(__name__)
 api = Api(app)
+CHUNK = 1024
+FORMAT = pyaudio.paInt16
+CHANNELS = 2
+RATE = 44100
+RECORD_SECONDS = 20
+WAVE_OUTPUT_FILENAME = "output.wav"
 
 CORS(app)
-
 
 @app.route("/")
 def hello():
     speak('Hello Sir, I am your digital assistant')
     speak('How may I help you?')
     greetMe()
+    p = pyaudio.PyAudio()
+
+    stream = p.open(format=FORMAT,
+                    channels=CHANNELS,
+                    rate=RATE,
+                    input=True,
+                    frames_per_buffer=CHUNK)
+
+    print("* recording")
+
+    frames = []
+
+    for i in range(0, int(RATE / CHUNK * RECORD_SECONDS)):
+        data = stream.read(CHUNK)
+        frames.append(data)
+
+
+
+    wf = wave.open(WAVE_OUTPUT_FILENAME, 'wb')
+    wf.setnchannels(CHANNELS)
+    wf.setsampwidth(p.get_sample_size(FORMAT))
+    wf.setframerate(RATE)
+    wf.writeframes(b''.join(frames))
+    wf.close()
     while True:
 
         query = myCommand()
@@ -70,6 +103,10 @@ def hello():
         elif 'nothing' in query or 'abort' in query or 'stop' in query:
             speak('okay')
             speak('Bye Sir, have a good day.')
+            print("* done recording")
+            stream.stop_stream()
+            stream.close()
+            p.terminate()
             sys.exit()
             
         elif 'hello' in query:
@@ -80,12 +117,13 @@ def hello():
             sys.exit()
                                     
         elif 'play music' in query:
-            music_folder = Your_music_folder_path
-            music = [music1, music2, music3, music4, music5]
-            random_music = music_folder + random.choice(music) + '.mp3'
+            music_folder = 'D:\CodeCombat\mp3Songs'
+            music = ['\R','\W']
+            random_music = music_folder  + random.choice(music) + '.mp3'
             os.system(random_music)
-                    
-            speak('Okay, here is your music! Enjoy!')
+            playsound(random_music)
+
+            speak('Okay, here is your music! Enjoy!') 
             
 
         else:
@@ -112,16 +150,17 @@ def hello():
 
     return jsonify({'text':'Hello World!'})
 
-
-engine = pyttsx3.init('espeak')
+engine = pyttsx3.init('sapi5')
 
 client = wolframalpha.Client('THE87U-AXRX25RYLE')
 
 voices = engine.getProperty('voices')
 engine.setProperty('voice', voices[len(voices)-1].id)
 
+
 def speak(audio):
     print('Computer: ' + audio)
+    engine = pyttsx3.init();
     engine.say(audio)
     engine.runAndWait()
 
@@ -152,7 +191,8 @@ def myCommand():
     try:
         query = r.recognize_google(audio, language='en-in')
         print('User: ' + query + '\n')
-        
+        print(audio)
+
     except sr.UnknownValueError:
         speak('Sorry sir! I didn\'t get that! Try typing the command!')
         query = str(input('Command: '))
@@ -161,7 +201,8 @@ def myCommand():
 
 if __name__ == '__main__':
      app.run(port=5002)
-        
+
+
 
 # if __name__ == '__main__':
 
