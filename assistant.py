@@ -17,49 +17,47 @@ from flask_cors import CORS, cross_origin
 from flask_restful import Resource, Api
 from json import dumps
 from flask_jsonpify import jsonify
+from pygame import mixer
+from email.MIMEMultipart import MIMEMultipart
+from email.MIMEText import MIMEText
+
 
 app = Flask(__name__)
 api = Api(app)
 CHUNK = 1024
 FORMAT = pyaudio.paInt16
-CHANNELS = 2
-RATE = 44100
-RECORD_SECONDS = 20
+CHANNELS = 1
+RATE = 16000
+RECORD_SECONDS = 5
 WAVE_OUTPUT_FILENAME = "output.wav"
+EMAIL_OUTPUT_FILENAME = "email.wav"
+FRAMES = []
+EMAIL_FRAMES = []
+P = pyaudio.PyAudio()
+music_folder = 'D:\CodeCombat\mp3Songs'
+music = ['\R','\W','\A']
+MUSIC = False
+EMAIL = False
+sender_email = "bsss.3332@gmail.com"
+receiver_email = "shubham.sharma@people10.com"
+message = MIMEMultipart("alternative")
+message["Subject"] = "Message from VoicePI"
+message["From"] = sender_email
+message["To"] = receiver_email
+mixer.init()
 
 CORS(app)
 
 @app.route("/")
 def hello():
     speak('Hello Sir, I am your digital assistant')
-    speak('How may I help you?')
     greetMe()
-    p = pyaudio.PyAudio()
+    speak('How may I help you?')
 
-    stream = p.open(format=FORMAT,
-                    channels=CHANNELS,
-                    rate=RATE,
-                    input=True,
-                    frames_per_buffer=CHUNK)
-
-    print("* recording")
-
-    frames = []
-
-    for i in range(0, int(RATE / CHUNK * RECORD_SECONDS)):
-        data = stream.read(CHUNK)
-        frames.append(data)
-
-
-
-    wf = wave.open(WAVE_OUTPUT_FILENAME, 'wb')
-    wf.setnchannels(CHANNELS)
-    wf.setsampwidth(p.get_sample_size(FORMAT))
-    wf.setframerate(RATE)
-    wf.writeframes(b''.join(frames))
-    wf.close()
     while True:
-
+        global MUSIC
+        global EMAIL
+        
         query = myCommand()
         query = query.lower()
         
@@ -83,30 +81,43 @@ def hello():
             speak('Who is the recipient? ')
             recipient = myCommand()
 
-            if 'me' in recipient:
+            if 'Shubham' in recipient:
                 try:
-                    speak('What should I say? ')
-                    content = myCommand()
-        
+                    speak("What is the body part ?")
+                    message["Body"]=myCommand()
+                    wf = wave.open(EMAIL_OUTPUT_FILENAME, 'wb')
+                    wf.setnchannels(CHANNELS)
+                    wf.setsampwidth(P.get_sample_size(FORMAT))
+                    wf.setframerate(RATE)
+                    wf.writeframes(b''.join(EMAIL_FRAMES))
+                    wf.close()
+                    # print(dir(audio))
+                    # EMAIL_FRAMES.append(audio.frame_data)
                     server = smtplib.SMTP('smtp.gmail.com', 587)
                     server.ehlo()
                     server.starttls()
-                    server.login("Your_Username", 'Your_Password')
-                    server.sendmail('Your_Username', "Recipient_Username", content)
+                    server.login(sender_email, 'vinayak2015')
+                    server.sendmail(sender_email, receiver_email,message["Body"] )
                     server.close()
                     speak('Email sent!')
+                    EMAIL = False
 
                 except:
                     speak('Sorry Sir! I am unable to send your message at this moment!')
+                    EMAIL = False
 
-
-        elif 'nothing' in query or 'abort' in query or 'stop' in query:
+        
+        elif 'stop music' in query or (MUSIC == True and 'music' in query): 
+               mixer.music.stop()
+               MUSIC = False
+        
+        elif 'nothing' in query or 'abort' in query in query:
             speak('okay')
             speak('Bye Sir, have a good day.')
             print("* done recording")
             stream.stop_stream()
             stream.close()
-            p.terminate()
+            P.terminate()
             sys.exit()
             
         elif 'hello' in query:
@@ -114,33 +125,32 @@ def hello():
 
         elif 'bye' in query:
             speak('Bye Sir, have a good day.')
+            wf = wave.open(WAVE_OUTPUT_FILENAME, 'wb')
+            wf.setnchannels(CHANNELS)
+            wf.setsampwidth(P.get_sample_size(FORMAT))
+            wf.setframerate(RATE)
+            wf.writeframes(b''.join(FRAMES))
+            wf.close()
             sys.exit()
                                     
         elif 'play music' in query:
-            music_folder = 'D:\CodeCombat\mp3Songs'
-            music = ['\R','\W']
             random_music = music_folder  + random.choice(music) + '.mp3'
-            os.system(random_music)
-            playsound(random_music)
-
             speak('Okay, here is your music! Enjoy!') 
-            
-
+            mixer.music.load(random_music)
+            mixer.music.play()
+            MUSIC = True
+         
         else:
             query = query
-            # speak('Searching...')
             try:
                 try:
                     res = client.query(query)
                     results = next(res.results).text
-                    # speak('WOLFRAM-ALPHA says - ')
-                    # speak('Got it.')
                     speak(results)
                     
                 except:
                     results = wikipedia.summary(query, sentences=2)
                     speak('Got it.')
-                    speak('WIKIPEDIA says - ')
                     speak(results)
         
             except:
@@ -169,29 +179,32 @@ def greetMe():
     if currentH >= 0 and currentH < 12:
         speak('Good Morning!')
 
-    if currentH >= 12 and currentH < 18:
+    if currentH >= 12 and currentH < 16:
         speak('Good Afternoon!')
 
-    if currentH >= 18 and currentH !=0:
+    if currentH >= 16 and currentH !=0:
         speak('Good Evening!')
 
-# greetMe()
-
-# speak('Hello Sir, I am your digital assistant LARVIS the Lady Jarvis!')
-# speak('How may I help you?')
-
-
 def myCommand():
-   
-    r = sr.Recognizer()                                                                                   
-    with sr.Microphone() as source:                                                                       
+    global EMAIL
+    r = sr.Recognizer()   
+    # print(dir(sr.Microphone.__dict__))                                                                                
+    with sr.Microphone(sample_rate = 16000) as source:                                                                       
         print("Listening...")
         r.pause_threshold =  1
         audio = r.listen(source)
+        print(dir(audio.sample_rate))
+        FRAMES.append(audio.frame_data)
+        print(EMAIL)
+        if EMAIL == True:
+            EMAIL_FRAMES.append(audio.frame_data)
+
     try:
         query = r.recognize_google(audio, language='en-in')
+        if "email" in query:
+            EMAIL_FRAMES.append(audio.frame_data)
+            EMAIL = True
         print('User: ' + query + '\n')
-        print(audio)
 
     except sr.UnknownValueError:
         speak('Sorry sir! I didn\'t get that! Try typing the command!')
@@ -199,96 +212,9 @@ def myCommand():
 
     return query
 
+     
+
 if __name__ == '__main__':
      app.run(port=5002)
-
-
-
-# if __name__ == '__main__':
-
-    # while True:
-    
-    #     query = myCommand();
-    #     query = query.lower()
-        
-    #     if 'open youtube' in query:
-    #         speak('okay')
-    #         webbrowser.open('www.youtube.com')
-
-    #     elif 'open google' in query:
-    #         speak('okay')
-    #         webbrowser.open('www.google.co.in')
-
-    #     elif 'open gmail' in query:
-    #         speak('okay')
-    #         webbrowser.open('www.gmail.com')
-
-    #     elif "what\'s up" in query or 'how are you' in query:
-    #         stMsgs = ['Just doing my thing!', 'I am fine!', 'Nice!', 'I am nice and full of energy']
-    #         speak(random.choice(stMsgs))
-
-    #     elif 'email' in query:
-    #         speak('Who is the recipient? ')
-    #         recipient = myCommand()
-
-    #         if 'me' in recipient:
-    #             try:
-    #                 speak('What should I say? ')
-    #                 content = myCommand()
-        
-    #                 server = smtplib.SMTP('smtp.gmail.com', 587)
-    #                 server.ehlo()
-    #                 server.starttls()
-    #                 server.login("Your_Username", 'Your_Password')
-    #                 server.sendmail('Your_Username', "Recipient_Username", content)
-    #                 server.close()
-    #                 speak('Email sent!')
-
-    #             except:
-    #                 speak('Sorry Sir! I am unable to send your message at this moment!')
-
-
-    #     elif 'nothing' in query or 'abort' in query or 'stop' in query:
-    #         speak('okay')
-    #         speak('Bye Sir, have a good day.')
-    #         sys.exit()
-           
-    #     elif 'hello' in query:
-    #         speak('Hello Sir')
-
-    #     elif 'bye' in query:
-    #         speak('Bye Sir, have a good day.')
-    #         sys.exit()
-                                    
-    #     elif 'play music' in query:
-    #         music_folder = Your_music_folder_path
-    #         music = [music1, music2, music3, music4, music5]
-    #         random_music = music_folder + random.choice(music) + '.mp3'
-    #         os.system(random_music)
-                  
-    #         speak('Okay, here is your music! Enjoy!')
-            
-
-    #     else:
-    #         query = query
-    #         # speak('Searching...')
-    #         try:
-    #             try:
-    #                 res = client.query(query)
-    #                 results = next(res.results).text
-    #                 # speak('WOLFRAM-ALPHA says - ')
-    #                 # speak('Got it.')
-    #                 speak(results)
-                    
-    #             except:
-    #                 results = wikipedia.summary(query, sentences=2)
-    #                 speak('Got it.')
-    #                 speak('WIKIPEDIA says - ')
-    #                 speak(results)
-        
-    #         except:
-    #             webbrowser.open('www.google.com')
-        
-    #     speak('Next Command! Sir!')
         
 
