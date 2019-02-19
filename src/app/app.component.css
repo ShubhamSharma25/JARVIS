@@ -1,0 +1,40 @@
+.title {
+    text-align: center;
+    color: RED;
+    font-size: 30px;
+    text-shadow: 0 4px 4px rgba(0,0,0,.25);
+  }
+  
+  .logo{
+    width: 5%;
+    float: right;
+    border-radius: 20px;
+  }
+
+  .img-height {
+    height: 150px;
+    border-radius: 100%;
+}
+
+.sub-head {
+    font-size: 15px;
+    color: #535185;
+    padding-left: 20px;
+}
+
+.speaks {
+    padding: 0px 50px;
+}
+
+.messages {
+    color: #535185;
+    font-size: 14px;
+    padding: 0px 20px;
+}
+
+.head-desc {
+    color: #568ED9;
+    font-size: 15px;
+    padding: 5px 0px;
+    text-align: center;
+}

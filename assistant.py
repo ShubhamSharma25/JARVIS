@@ -1,5 +1,8 @@
+import time
 import pyttsx3
 import webbrowser
+import httplib, urllib, base64
+import json
 import smtplib
 import random
 import speech_recognition as sr
@@ -31,32 +34,49 @@ RATE = 16000
 RECORD_SECONDS = 5
 WAVE_OUTPUT_FILENAME = "output.wav"
 EMAIL_OUTPUT_FILENAME = "email.wav"
+MUSIC_PLAYER_OUTPUT_FILENAME = "music_player.wav"
+MUSIC_STOPER_OUTPUT_FILENAME = "music_stoper.wav"
 FRAMES = []
 EMAIL_FRAMES = []
+MUSIC_PLAYER_FRAMES = []
+MUSIC_STOPER_FRAMES = []
 P = pyaudio.PyAudio()
 music_folder = 'D:\CodeCombat\mp3Songs'
 music = ['\R','\W','\A']
 MUSIC = False
 EMAIL = False
-sender_email = "bsss.3332@gmail.com"
+sender_email_shubham = "bsss.3332@gmail.com"
+sender_email_vivek = "agent47vivek@gmail.com"
 receiver_email = "shubham.sharma@people10.com"
 message = MIMEMultipart("alternative")
 message["Subject"] = "Message from VoicePI"
-message["From"] = sender_email
+message["From"] = sender_email_vivek
 message["To"] = receiver_email
+rows=3
+columns=3
+SPEAKER_DATA = [["Vivek","2314cf7d-5408-4608-b7b3-8cb48a9d5bf1",True],["Shubham","20102024-a5b6-4aa5-915c-4db2b0cf0307",True],["Ashika","2a226f34-0139-44eb-b08d-ac1430818ac3",False]]
 mixer.init()
+MUSIC_PLAYER = "Unknown"
+MUSIC_STOPER = "Unknown"
 
-CORS(app)
+
+# CORS(app)
 
 @app.route("/")
 def hello():
-    speak('Hello Sir, I am your digital assistant')
+    speak('Hello Sir, I am your personal voice assistant Voice PI')
     greetMe()
     speak('How may I help you?')
 
     while True:
         global MUSIC
         global EMAIL
+        global EMAIL_FRAMES
+        global MUSIC_PLAYER
+        global MUSIC_STOPER
+        global sender_email_shubham
+        global sender_email_vivek
+
         
         query = myCommand()
         query = query.lower()
@@ -91,32 +111,48 @@ def hello():
                     wf.setframerate(RATE)
                     wf.writeframes(b''.join(EMAIL_FRAMES))
                     wf.close()
+                    EMAIL_FRAMES =[]
+                    # print("IT REACHED HERE?")
+                    recognize_speaker("email.wav","email")
                     # print(dir(audio))
                     # EMAIL_FRAMES.append(audio.frame_data)
                     server = smtplib.SMTP('smtp.gmail.com', 587)
                     server.ehlo()
                     server.starttls()
-                    server.login(sender_email, 'vinayak2015')
-                    server.sendmail(sender_email, receiver_email,message["Body"] )
-                    server.close()
-                    speak('Email sent!')
+                    if EMAILER == "Vivek":
+                        server.login(sender_email_vivek, 'vvvsm374368')
+                        server.sendmail(sender_email_vivek, receiver_email,message["Body"] )
+                        server.close()
+                        speak('Email sent!')
+                    elif EMAILER == "Shubham":
+                        server.login(sender_email_shubham, 'vinayak2015')
+                        server.sendmail(sender_email_shubham, receiver_email,message["Body"] )
+                        server.close()
+                        speak('Email sent!')
+                    elif EMAILER == "Ashika":
+                        speak('Sorry Ashika you are not authorised to send an email')
+                    elif EMAILER == "Unknown":
+                        speak('Please enroll and authorise yourself to send an email')
                     EMAIL = False
+                    EMAIL_FRAMES = []
 
                 except:
                     speak('Sorry Sir! I am unable to send your message at this moment!')
                     EMAIL = False
+                    EMAIL_FRAMES = []
 
         
-        elif 'stop music' in query or (MUSIC == True and 'music' in query): 
-               mixer.music.stop()
-               MUSIC = False
+        elif 'stop music' in query or (MUSIC == True and 'music' in query):
+            if MUSIC_PLAYER != MUSIC_STOPER:
+                speak('Sorry '+ MUSIC_STOPER + ' you are not the one who started the music')
+                continue; 
+            mixer.music.stop()
+            MUSIC = False
         
         elif 'nothing' in query or 'abort' in query in query:
             speak('okay')
             speak('Bye Sir, have a good day.')
             print("* done recording")
-            stream.stop_stream()
-            stream.close()
             P.terminate()
             sys.exit()
             
@@ -133,7 +169,7 @@ def hello():
             wf.close()
             sys.exit()
                                     
-        elif 'play music' in query:
+        elif 'play' in query and 'music' in query:
             random_music = music_folder  + random.choice(music) + '.mp3'
             speak('Okay, here is your music! Enjoy!') 
             mixer.music.load(random_music)
@@ -156,6 +192,7 @@ def hello():
             except:
                 webbrowser.open('www.google.com')
         
+
         speak('Next Command! Sir!')
 
     return jsonify({'text':'Hello World!'})
@@ -185,17 +222,131 @@ def greetMe():
     if currentH >= 16 and currentH !=0:
         speak('Good Evening!')
 
+def recognize_speaker(file,rqtype):
+    global SPEAKER_DATA
+    global rows
+    global columns
+    global MUSIC_PLAYER
+    global MUSIC_STOPER
+    global EMAILER
+    global MUSIC_PLAYER_FRAMES
+    global MUSIC_STOPER_FRAMES
+    speaker_assigned = False
+    print("Processing..")
+    # print("its coming here",file)
+    w = open(file, "rb")
+
+    headers = {
+        # Request headers
+        'Content-Type': 'application/multipart/form-data',
+        'Ocp-Apim-Subscription-Key': '12b3f53ce7e84ebab5a142acb006a3cd',
+    }
+
+    params = urllib.urlencode({
+        # Request parameters
+        'shortAudio': 'True',
+    })
+
+    try:
+        conn = httplib.HTTPSConnection('westus.api.cognitive.microsoft.com')
+        conn.request("POST", "/spid/v1.0/identify?identificationProfileIds=20102024-a5b6-4aa5-915c-4db2b0cf0307,2314cf7d-5408-4608-b7b3-8cb48a9d5bf1,2a226f34-0139-44eb-b08d-ac1430818ac3,1e60e469-f1de-43b0-8c91-cddc20c88224,fd50dad3-f01e-442f-a02c-ae7d7af38b4f&%s" % params, w, headers)
+        response = conn.getresponse()
+        data1 = response.getheader('Operation-Location')
+        # print(response.getheader('Operation-Location'))
+        conn.close()
+    except Exception as e:
+        print("[Errno {0}] {1}".format(e.errno, e.strerror))
+    
+    opId = data1.split("operations/")[1]
+    print(opId)
+
+    time.sleep(5)
+    headers = {
+    # Request headers
+        'Ocp-Apim-Subscription-Key': '12b3f53ce7e84ebab5a142acb006a3cd',
+    }
+
+    params = urllib.urlencode({
+    })
+
+    try:
+        conn = httplib.HTTPSConnection('westus.api.cognitive.microsoft.com')
+        conn.request("GET", "/spid/v1.0/operations/"+opId+"?%s" % params, opId, headers)
+        response = conn.getresponse()
+        data = response.read()
+        jsondata = json.loads(data)
+        # speakerId = jsondata['processingResult']['identifiedProfileId']
+        # print(type(jsondata['processingResult']['identifiedProfileId']))
+        # d = json.loads(j)
+        # print d['glossary']['title']
+        conn.close()
+    except Exception as e:
+        print("[Errno {0}] {1}".format(e.errno, e.strerror))
+
+    speakerId = jsondata['processingResult']['identifiedProfileId']
+    confidence = jsondata['processingResult']['confidence']
+    rows=3
+    columns=3
+    # from array import *
+    SPEAKER_DATA = [["Vivek","2314cf7d-5408-4608-b7b3-8cb48a9d5bf1",True],["Shubham","20102024-a5b6-4aa5-915c-4db2b0cf0307",True],["Ashika","2a226f34-0139-44eb-b08d-ac1430818ac3",False]]
+
+    for i in range(rows):
+        for j in range(columns):
+            if SPEAKER_DATA[i][j] == speakerId:
+                speaker = SPEAKER_DATA[i][j-1]
+                speaker_assigned = True
+                print(speaker)
+
+    if rqtype == "music":      
+        if file == "music_player.wav":
+            if speaker_assigned:
+                MUSIC_PLAYER = speaker
+            else :
+                MUSIC_PLAYER = "Unknown"
+        if file == "music_stoper.wav":
+            if speaker_assigned:
+                MUSIC_STOPER = speaker 
+            else : 
+                MUSIC_STOPER = "Unknown"
+        
+        print(MUSIC_PLAYER,"player")
+        print(MUSIC_STOPER,"stoper")
+        MUSIC_PLAYER_FRAMES = []
+        MUSIC_STOPER_FRAMES = []
+    elif rqtype == "email":
+        print("EMAIL REQUEST")
+        if speaker_assigned:
+            EMAILER = speaker
+            print(EMAILER)
+        else:
+            EMAILER = 'Unknown'
+            print(EMAILER)
+        EMAIL_FRAMES = []
+    
+
+
+
+    
+
+
+
 def myCommand():
     global EMAIL
+    global EMAILER
+    global MUSIC
+    global MUSIC_PLAYER
+    global MUSIC_STOPER
+    global SPEAKER_DATA
     r = sr.Recognizer()   
     # print(dir(sr.Microphone.__dict__))                                                                                
     with sr.Microphone(sample_rate = 16000) as source:                                                                       
         print("Listening...")
-        r.pause_threshold =  1
+        r.pause_threshold = 1
         audio = r.listen(source)
-        print(dir(audio.sample_rate))
+        # print("CAME HERE?")
+        # print(dir(audio.sample_rate))
         FRAMES.append(audio.frame_data)
-        print(EMAIL)
+        # print(EMAIL)
         if EMAIL == True:
             EMAIL_FRAMES.append(audio.frame_data)
 
@@ -204,6 +355,26 @@ def myCommand():
         if "email" in query:
             EMAIL_FRAMES.append(audio.frame_data)
             EMAIL = True
+        if 'play' in query and 'music' in query :
+            MUSIC_PLAYER_FRAMES.append(audio.frame_data)
+            wf = wave.open(MUSIC_PLAYER_OUTPUT_FILENAME, 'wb')
+            wf.setnchannels(CHANNELS)
+            wf.setsampwidth(P.get_sample_size(FORMAT))
+            wf.setframerate(RATE)
+            wf.writeframes(b''.join(MUSIC_PLAYER_FRAMES))
+            wf.close()
+            recognize_speaker("music_player.wav","music")
+            print("Music player = " , MUSIC_PLAYER)
+        if 'stop' in query and 'music' in query :
+            MUSIC_STOPER_FRAMES.append(audio.frame_data)
+            wf = wave.open(MUSIC_STOPER_OUTPUT_FILENAME, 'wb')
+            wf.setnchannels(CHANNELS)
+            wf.setsampwidth(P.get_sample_size(FORMAT))
+            wf.setframerate(RATE)
+            wf.writeframes(b''.join(MUSIC_STOPER_FRAMES))
+            wf.close()
+            recognize_speaker("music_stoper.wav","music")
+            print("Music stopper = " , MUSIC_STOPER)
         print('User: ' + query + '\n')
 
     except sr.UnknownValueError:

@@ -13,6 +13,7 @@ export class AppComponent {
   serverData: JSON;
   employeeData: JSON;
   employee:JSON;
+  started = false;
 
   constructor(private httpClient: HttpClient) {
   }
@@ -41,6 +42,7 @@ export class AppComponent {
   }
 
   callVoicePI() {
+    this.started = true;
     this.httpClient.get('http://127.0.0.1:5002/').subscribe(data => {
       this.serverData = data as JSON;
       console.log(this.serverData);
